@@ -24,6 +24,7 @@ from ._core import (
     stacked_bar,
 )
 from ._draw import draw
+from .bandit import Bandit, ChartVariant, InMemoryStorage, JSONFileStorage, ordered_for_viewer
 
 __all__ = [
     "bar", "hbar", "stacked_bar",
@@ -33,6 +34,8 @@ __all__ = [
     "scatter", "bubble",
     "heatmap", "radar",
     "draw",
+    "Bandit", "ChartVariant", "ordered_for_viewer",
+    "JSONFileStorage", "InMemoryStorage",
 ]
 
 __version__ = "0.1.0"

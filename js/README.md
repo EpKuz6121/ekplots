@@ -97,6 +97,50 @@ call would have failed in production even though it looked correct in
 source. Fixed by dropping the underscore, matching every other real
 public method (`trackPageView`, `identify`).
 
+## Adaptive personalization — pick which variant wins, automatically
+
+`ekplots-bandit.js` is the browser-native sibling of the Python binding's
+`ekplots.Bandit` (same reward math, same JSON shape) — and the more
+self-contained of the two, since it measures dwell time itself, with its
+own `IntersectionObserver`, independent of `window.__analytics` or any
+other tracker. No other charting library ships this: ekplots can decide
+which variant of a chart to render, learn which one keeps a visitor
+looking at it longest, and serve that one more often — entirely client-
+side, no backend required.
+
+```html
+<script src="ekplots_wasm.js"></script>
+<script src="ekplots.js"></script>
+<script src="ekplots-draw.js"></script>
+<script src="ekplots-bandit.js"></script>
+<canvas id="chart" width="400" height="300"></canvas>
+<script>
+  ekplots.ready.then(() => {
+    const bandit = new ekplotsBandit.Bandit(); // defaults to localStorage
+    bandit.addSlot('retention_chart', ['bar_vs_line']);
+
+    const variant = bandit.choose('retention_chart');
+    const layout = variant === 'control' ? ekplots.bar([10, 25, 15, 40]) : ekplots.line([0,1,2,3], [3,7,2,8]);
+    const ctx = document.getElementById('chart').getContext('2d');
+    ekplots.draw(ctx, layout);
+
+    ekplotsBandit.wireDwellTracking(ctx.canvas, `retention_chart:${variant}`, (dwellMs) => {
+      bandit.recordDwell('retention_chart', variant, dwellMs);
+    });
+  });
+</script>
+```
+
+That's the whole loop: as real visitors view each variant, `recordDwell`
+compares their dwell time against the control arm's recent average and
+feeds the result straight into the bandit — the next `choose()` call
+anywhere on the site is already slightly more likely to pick whichever
+variant is actually working. `ekplotsBandit.orderedForViewer(charts, {
+viewerCluster, enabled, rolloutP })` is the complementary piece for
+ranking several *different* charts by visitor cluster — see the Python
+README's version of this example for the full explanation, identical on
+both sides.
+
 ## Files
 
 | File | What it is |
@@ -104,7 +148,9 @@ public method (`trackPageView`, `identify`).
 | `shim.c` | Explicit-pointer wrappers around the real `ekplots_<name>_layout()` functions — see its own header comment for why |
 | `build.sh` / `exports.txt` | The real Emscripten compile command and export list |
 | `ekplots.js` | Geometry-only binding — loads the WASM module, marshals memory, returns plain JS objects |
-| `ekplots-draw.js` | Canvas2D renderer + the tracking hook |
+| `ekplots-draw.js` | Canvas2D renderer + the SurveySync tracking hook |
+| `ekplots-bandit.js` | The adaptive personalization engine — Thompson-sampling bandit, its own dwell-time tracking, cluster-based chart ordering |
 | `test_node.mjs` | 19 real correctness checks against the compiled WASM |
 | `test_tracking_hook.mjs` | 4 real checks that the tracking hook calls through to a mock tracker with the exact right shape |
+| `test_bandit.mjs` | 16 real checks: bandit math, dwell-based rewards, priority weighting, pausing, cluster ordering, and dwell-tracking's own IntersectionObserver wiring |
 | `render_all_15.mjs` | Renders all 15 to real PNGs (uses `node-canvas` as a stand-in for a browser `<canvas>`) |

@@ -22,13 +22,27 @@ const layout = ekplots.bar([10, 25, 15, 40]);
 ekplots.draw(ctx, layout);
 ```
 
+### What makes ekplots different: it adapts on its own
+
+Most charting libraries stop once they've drawn a chart. ekplots also
+ships a built-in **Thompson-sampling bandit** (`ekplots.Bandit` /
+`ekplots-bandit.js`) that can choose between several variants of a
+chart, measure which one holds a visitor's attention longest, and serve
+that one more often over time — with no external analytics platform, no
+server, no database. The JS binding measures dwell time itself, with its
+own `IntersectionObserver`; the Python binding exposes the same reward
+math for whatever host app wants to feed it outcomes. See the
+"Adaptive personalization" section in each binding's own README for the
+full example.
+
 ## Status
 
 | | State |
 |---|---|
 | C core (all 15 plots) | Real, compiled with `-Wall -Wextra`, zero warnings |
-| Python binding | Real — `pip install -e .`, 37 passing tests, real sdist+wheel, `twine check` passed |
+| Python binding | Real — `pip install -e .`, 52 passing tests, real sdist+wheel, `twine check` passed |
 | JS/WASM binding | Real — compiled via Emscripten, 19+4 passing tests against real pixel output |
+| Adaptive personalization (bandit) | Real in both bindings — 15 Python tests, 16 JS tests, no mocking of the actual bandit math |
 | Browser-verified | **Not yet** — built and tested in Node only; no browser was available in the environment this was built in. Should work unmodified against a standard `<canvas>`, but that's unverified, not assumed working |
 | Published to PyPI / npm | Not yet |
 
