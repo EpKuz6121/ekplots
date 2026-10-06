@@ -28,6 +28,13 @@ ekplots_native = Extension(
     sources=["ekplots/native/ekplots.c", "ekplots/native/pyinit_stub.c"],
     include_dirs=["ekplots/native"],
     extra_compile_args=extra_compile_args,
+    # Selects the __declspec(dllexport) branch in ekplots.h's EKPLOTS_API
+    # macro on Windows — without it every ekplots_<name>_layout symbol is
+    # invisible to ctypes.CDLL at runtime even though compile+link both
+    # succeed (a real failure this repo's own Windows CI caught).
+    # No-op on macOS/Linux, which always use the __attribute__((visibility))
+    # branch regardless of this macro.
+    define_macros=[("EKPLOTS_BUILDING", "1")],
 )
 
 setup(ext_modules=[ekplots_native])

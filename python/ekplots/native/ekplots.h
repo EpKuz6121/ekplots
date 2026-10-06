@@ -19,6 +19,26 @@
 extern "C" {
 #endif
 
+/* Explicit export visibility — required on Windows, where DLL symbols
+ * are hidden by default (unlike macOS/Linux .dylib/.so, where every
+ * global symbol is exported unless explicitly hidden). Without this,
+ * every ekplots_<name>_layout() function compiles fine and the .pyd
+ * links fine, but ctypes.CDLL can't find any of them at runtime —
+ * a real failure this repo's own Windows CI caught, not a
+ * theoretical one. EKPLOTS_BUILDING is defined only by the build
+ * itself (not by a consumer including this header), the standard
+ * pattern for distinguishing "compiling the DLL" from "linking
+ * against it" — though every consumer here is ctypes, never a C
+ * caller including this header against a prebuilt import lib, so in
+ * practice this always resolves to the export branch. */
+#if defined(_WIN32) && defined(EKPLOTS_BUILDING)
+#define EKPLOTS_API __declspec(dllexport)
+#elif defined(_WIN32)
+#define EKPLOTS_API __declspec(dllimport)
+#else
+#define EKPLOTS_API __attribute__((visibility("default")))
+#endif
+
 /* ---- Shared primitives ---- */
 
 typedef struct { double x, y; } EKPoint;
@@ -41,8 +61,8 @@ typedef struct {
     EKBounds bounds;
 } EKBarLayout;
 
-EKBarLayout ekplots_bar_layout(const double* values, size_t n, EKBarOptions opts);
-void ekplots_bar_free(EKBarLayout* layout);
+EKPLOTS_API EKBarLayout ekplots_bar_layout(const double* values, size_t n, EKBarOptions opts);
+EKPLOTS_API void ekplots_bar_free(EKBarLayout* layout);
 
 /* ================= 3. Stacked Bar ================= */
 
@@ -58,11 +78,11 @@ typedef struct {
     EKBounds bounds;
 } EKStackedBarLayout;
 
-EKStackedBarLayout ekplots_stacked_bar_layout(
+EKPLOTS_API EKStackedBarLayout ekplots_stacked_bar_layout(
     const double* const* series_values, size_t n_series, size_t n_categories,
     EKStackedBarOptions opts
 );
-void ekplots_stacked_bar_free(EKStackedBarLayout* layout);
+EKPLOTS_API void ekplots_stacked_bar_free(EKStackedBarLayout* layout);
 
 /* ================= 4. Line ================= */
 
@@ -77,8 +97,8 @@ typedef struct {
     EKBounds bounds;
 } EKLineLayout;
 
-EKLineLayout ekplots_line_layout(const double* x, const double* y, size_t n, EKLineOptions opts);
-void ekplots_line_free(EKLineLayout* layout);
+EKPLOTS_API EKLineLayout ekplots_line_layout(const double* x, const double* y, size_t n, EKLineOptions opts);
+EKPLOTS_API void ekplots_line_free(EKLineLayout* layout);
 
 /* ================= 5. Area ================= */
 
@@ -94,8 +114,8 @@ typedef struct {
     EKBounds bounds;
 } EKAreaLayout;
 
-EKAreaLayout ekplots_area_layout(const double* x, const double* y, size_t n, EKAreaOptions opts);
-void ekplots_area_free(EKAreaLayout* layout);
+EKPLOTS_API EKAreaLayout ekplots_area_layout(const double* x, const double* y, size_t n, EKAreaOptions opts);
+EKPLOTS_API void ekplots_area_free(EKAreaLayout* layout);
 
 /* ================= 6. Stacked Area ================= */
 
@@ -109,11 +129,11 @@ typedef struct {
     EKBounds bounds;
 } EKStackedAreaLayout;
 
-EKStackedAreaLayout ekplots_stacked_area_layout(
+EKPLOTS_API EKStackedAreaLayout ekplots_stacked_area_layout(
     const double* x, const double* const* series_y, size_t n_series, size_t n_points,
     EKStackedAreaOptions opts
 );
-void ekplots_stacked_area_free(EKStackedAreaLayout* layout);
+EKPLOTS_API void ekplots_stacked_area_free(EKStackedAreaLayout* layout);
 
 /* ================= 7. Pie (also used by 8. Donut) ================= */
 
@@ -124,8 +144,8 @@ typedef struct {
     size_t n;
 } EKPieLayout;
 
-EKPieLayout ekplots_pie_layout(const double* values, size_t n, EKPieOptions opts);
-void ekplots_pie_free(EKPieLayout* layout);
+EKPLOTS_API EKPieLayout ekplots_pie_layout(const double* values, size_t n, EKPieOptions opts);
+EKPLOTS_API void ekplots_pie_free(EKPieLayout* layout);
 
 /* ================= 8. Donut ================= */
 
@@ -137,8 +157,8 @@ typedef struct {
     double inner_r;
 } EKDonutLayout;
 
-EKDonutLayout ekplots_donut_layout(const double* values, size_t n, EKDonutOptions opts);
-void ekplots_donut_free(EKDonutLayout* layout);
+EKPLOTS_API EKDonutLayout ekplots_donut_layout(const double* values, size_t n, EKDonutOptions opts);
+EKPLOTS_API void ekplots_donut_free(EKDonutLayout* layout);
 
 /* ================= 9. Funnel ================= */
 
@@ -157,8 +177,8 @@ typedef struct {
     size_t n;
 } EKFunnelLayout;
 
-EKFunnelLayout ekplots_funnel_layout(const double* values, size_t n, EKFunnelOptions opts);
-void ekplots_funnel_free(EKFunnelLayout* layout);
+EKPLOTS_API EKFunnelLayout ekplots_funnel_layout(const double* values, size_t n, EKFunnelOptions opts);
+EKPLOTS_API void ekplots_funnel_free(EKFunnelLayout* layout);
 
 /* ================= 10. Histogram ================= */
 
@@ -174,8 +194,8 @@ typedef struct {
     EKBounds bounds;
 } EKHistogramLayout;
 
-EKHistogramLayout ekplots_histogram_layout(const double* values, size_t n, EKHistogramOptions opts);
-void ekplots_histogram_free(EKHistogramLayout* layout);
+EKPLOTS_API EKHistogramLayout ekplots_histogram_layout(const double* values, size_t n, EKHistogramOptions opts);
+EKPLOTS_API void ekplots_histogram_free(EKHistogramLayout* layout);
 
 /* ================= 11. Box Plot ================= */
 
@@ -198,11 +218,11 @@ typedef struct {
     EKBounds bounds;
 } EKBoxplotLayout;
 
-EKBoxplotLayout ekplots_boxplot_layout(
+EKPLOTS_API EKBoxplotLayout ekplots_boxplot_layout(
     const double* const* group_values, const size_t* group_sizes, size_t n_groups,
     EKBoxplotOptions opts
 );
-void ekplots_boxplot_free(EKBoxplotLayout* layout);
+EKPLOTS_API void ekplots_boxplot_free(EKBoxplotLayout* layout);
 
 /* ================= 12. Scatter ================= */
 
@@ -217,8 +237,8 @@ typedef struct {
     EKBounds bounds;
 } EKScatterLayout;
 
-EKScatterLayout ekplots_scatter_layout(const double* x, const double* y, size_t n, EKScatterOptions opts);
-void ekplots_scatter_free(EKScatterLayout* layout);
+EKPLOTS_API EKScatterLayout ekplots_scatter_layout(const double* x, const double* y, size_t n, EKScatterOptions opts);
+EKPLOTS_API void ekplots_scatter_free(EKScatterLayout* layout);
 
 /* ================= 13. Bubble ================= */
 
@@ -233,11 +253,11 @@ typedef struct {
     EKBounds bounds;
 } EKBubbleLayout;
 
-EKBubbleLayout ekplots_bubble_layout(
+EKPLOTS_API EKBubbleLayout ekplots_bubble_layout(
     const double* x, const double* y, const double* size, size_t n,
     EKBubbleOptions opts
 );
-void ekplots_bubble_free(EKBubbleLayout* layout);
+EKPLOTS_API void ekplots_bubble_free(EKBubbleLayout* layout);
 
 /* ================= 14. Heatmap ================= */
 
@@ -252,11 +272,11 @@ typedef struct {
     double value_min, value_max;
 } EKHeatmapLayout;
 
-EKHeatmapLayout ekplots_heatmap_layout(
+EKPLOTS_API EKHeatmapLayout ekplots_heatmap_layout(
     const double* values, size_t n_rows, size_t n_cols,
     EKHeatmapOptions opts
 );
-void ekplots_heatmap_free(EKHeatmapLayout* layout);
+EKPLOTS_API void ekplots_heatmap_free(EKHeatmapLayout* layout);
 
 /* ================= 15. Radar ================= */
 
@@ -271,8 +291,8 @@ typedef struct {
     size_t n_axes;
 } EKRadarLayout;
 
-EKRadarLayout ekplots_radar_layout(const double* values, size_t n_axes, EKRadarOptions opts);
-void ekplots_radar_free(EKRadarLayout* layout);
+EKPLOTS_API EKRadarLayout ekplots_radar_layout(const double* values, size_t n_axes, EKRadarOptions opts);
+EKPLOTS_API void ekplots_radar_free(EKRadarLayout* layout);
 
 #ifdef __cplusplus
 }
