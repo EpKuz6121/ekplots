@@ -1,0 +1,17 @@
+[
+  "_malloc", "_free",
+  "_ekplots_bar_layout_boxed", "_ekplots_bar_free",
+  "_ekplots_stacked_bar_layout_boxed", "_ekplots_stacked_bar_free",
+  "_ekplots_line_layout_boxed", "_ekplots_line_free",
+  "_ekplots_area_layout_boxed", "_ekplots_area_free",
+  "_ekplots_stacked_area_layout_boxed", "_ekplots_stacked_area_free",
+  "_ekplots_pie_layout_boxed", "_ekplots_pie_free",
+  "_ekplots_donut_layout_boxed", "_ekplots_donut_free",
+  "_ekplots_funnel_layout_boxed", "_ekplots_funnel_free",
+  "_ekplots_histogram_layout_boxed", "_ekplots_histogram_free",
+  "_ekplots_boxplot_layout_boxed", "_ekplots_boxplot_free",
+  "_ekplots_scatter_layout_boxed", "_ekplots_scatter_free",
+  "_ekplots_bubble_layout_boxed", "_ekplots_bubble_free",
+  "_ekplots_heatmap_layout_boxed", "_ekplots_heatmap_free",
+  "_ekplots_radar_layout_boxed", "_ekplots_radar_free"
+]

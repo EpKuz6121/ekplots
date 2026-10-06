@@ -15,9 +15,14 @@ smoke_*.output
 
 # Emscripten / WASM build products (large, regenerable — see js/build.sh)
 js/dist/
+js/ekplots_wasm.js
 *.wasm
 *.wasm.map
 emsdk/
+
+# Node
+node_modules/
+js/out/
 
 # OS cruft
 .DS_Store

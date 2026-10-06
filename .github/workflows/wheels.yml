@@ -1,0 +1,80 @@
+name: Build & publish wheels
+
+# Runs on a version tag (e.g. `git tag v0.1.0 && git push --tags`) — NOT
+# on every push, since building wheels for every OS/Python combination
+# is slow and only matters at release time. Publishing to PyPI needs
+# "trusted publishing" configured once on PyPI's side for this repo —
+# see the note at the bottom of this file. Nothing here runs without
+# that tag push; this workflow has zero effect until you create one.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build_wheels:
+    name: Build wheels on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    defaults:
+      run:
+        working-directory: python
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v2.21
+        with:
+          package-dir: python
+        env:
+          # CPython only for v0.1 — PyPy support can come later if someone
+          # actually asks for it; building it now would roughly double
+          # CI time for a platform nobody's requested.
+          CIBW_BUILD: "cp39-* cp310-* cp311-* cp312-* cp313-*"
+          CIBW_SKIP: "*-musllinux_* *_i686"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-${{ matrix.os }}
+          path: python/wheelhouse/*.whl
+
+  build_sdist:
+    name: Build sdist
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: python
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install build
+      - run: python -m build --sdist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sdist
+          path: python/dist/*.tar.gz
+
+  publish:
+    name: Publish to PyPI
+    needs: [build_wheels, build_sdist]
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write  # required for PyPI trusted publishing (OIDC) — no stored API token needed
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - uses: pypa/gh-action-pypi-publish@release/v1
+
+# ---- One-time setup before this can actually publish ----
+# 1. On pypi.org: Your project (once it exists) -> Publishing -> Add a
+#    new trusted publisher -> GitHub -> this repo, workflow "wheels.yml",
+#    environment "pypi". This replaces needing to store an API token as
+#    a GitHub secret at all.
+# 2. On GitHub: Settings -> Environments -> create an environment named
+#    "pypi" (matches `environment: pypi` above).
+# 3. Tag a release: `git tag v0.1.0 && git push --tags`.

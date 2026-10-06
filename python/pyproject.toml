@@ -23,5 +23,8 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Visualization",
 ]
 
+[project.optional-dependencies]
+dev = ["pytest>=7.0"]
+
 [tool.setuptools]
 packages = ["ekplots"]

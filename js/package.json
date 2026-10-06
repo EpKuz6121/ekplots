@@ -1,0 +1,15 @@
+{
+  "name": "ekplots",
+  "version": "0.1.0",
+  "description": "A charting library with one C geometry core, compiled to WebAssembly for JS — the Python binding's sibling.",
+  "main": "ekplots-draw.js",
+  "license": "MIT",
+  "scripts": {
+    "test": "node test_node.mjs",
+    "render": "node render_all_15.mjs",
+    "build": "./build.sh"
+  },
+  "devDependencies": {
+    "canvas": "^3.2.3"
+  }
+}

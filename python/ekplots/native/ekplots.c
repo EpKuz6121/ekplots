@@ -35,6 +35,98 @@ static double ek_quantile_sorted(const double* sorted, size_t n, double q) {
     return sorted[lo] + (sorted[hi] - sorted[lo]) * frac;
 }
 
+/* Monotone cubic Hermite interpolation (Fritsch-Carlson) — the same
+ * algorithm D3's curveMonotoneX uses. Unlike a naive cubic spline, this
+ * one is guaranteed to never overshoot past a data point (no wiggle
+ * between two points that are both local extrema), which is the
+ * difference between "looks smooth" and "visibly misrepresents the
+ * data between two points." Used by line/area when opts.smooth is set.
+ *
+ * Resamples n input points into (n-1)*EK_SMOOTH_SAMPLES+1 output points
+ * along the real curve — more points than the input, by design, since
+ * "smooth" means drawing the curve BETWEEN the original points, not
+ * just connecting them differently. x must be sorted ascending (true
+ * for any real time series, which is the only case this is built for).
+ */
+#define EK_SMOOTH_SAMPLES 20
+
+static size_t ek_monotone_cubic_resample(
+    const double* x, const double* y, size_t n, double** out_x, double** out_y
+) {
+    if (n < 3) {
+        /* Nothing to smooth — 0 or 1 segments has no curvature to fit.
+         * Return a copy so the caller can free() unconditionally. */
+        double* cx = malloc(n * sizeof(double));
+        double* cy = malloc(n * sizeof(double));
+        memcpy(cx, x, n * sizeof(double));
+        memcpy(cy, y, n * sizeof(double));
+        *out_x = cx;
+        *out_y = cy;
+        return n;
+    }
+
+    size_t n_segments = n - 1;
+    double* secants = malloc(n_segments * sizeof(double));   /* d_i */
+    double* tangents = malloc(n * sizeof(double));            /* m_i */
+
+    for (size_t i = 0; i < n_segments; i++) {
+        double dx = x[i + 1] - x[i];
+        secants[i] = (dx != 0.0) ? (y[i + 1] - y[i]) / dx : 0.0;
+    }
+
+    tangents[0] = secants[0];
+    tangents[n - 1] = secants[n_segments - 1];
+    for (size_t i = 1; i < n_segments; i++) {
+        tangents[i] = (secants[i - 1] + secants[i]) / 2.0;
+    }
+
+    /* Fritsch-Carlson monotonicity constraint: flatten tangents around a
+     * local extremum (secant sign change), and rescale any tangent pair
+     * whose combined magnitude would otherwise overshoot the secant. */
+    for (size_t i = 0; i < n_segments; i++) {
+        if (secants[i] == 0.0) {
+            tangents[i] = 0.0;
+            tangents[i + 1] = 0.0;
+            continue;
+        }
+        double alpha = tangents[i] / secants[i];
+        double beta = tangents[i + 1] / secants[i];
+        double mag = alpha * alpha + beta * beta;
+        if (mag > 9.0) {
+            double tau = 3.0 / sqrt(mag);
+            tangents[i] = tau * alpha * secants[i];
+            tangents[i + 1] = tau * beta * secants[i];
+        }
+    }
+
+    size_t n_out = n_segments * EK_SMOOTH_SAMPLES + 1;
+    double* rx = malloc(n_out * sizeof(double));
+    double* ry = malloc(n_out * sizeof(double));
+    size_t k = 0;
+
+    for (size_t i = 0; i < n_segments; i++) {
+        double dx = x[i + 1] - x[i];
+        size_t samples = (i == n_segments - 1) ? (EK_SMOOTH_SAMPLES + 1) : EK_SMOOTH_SAMPLES;
+        for (size_t s = 0; s < samples; s++) {
+            double t = (double)s / (double)EK_SMOOTH_SAMPLES;
+            double t2 = t * t, t3 = t2 * t;
+            double h00 = 2.0 * t3 - 3.0 * t2 + 1.0;
+            double h10 = t3 - 2.0 * t2 + t;
+            double h01 = -2.0 * t3 + 3.0 * t2;
+            double h11 = t3 - t2;
+            rx[k] = x[i] + t * dx;
+            ry[k] = h00 * y[i] + h10 * dx * tangents[i] + h01 * y[i + 1] + h11 * dx * tangents[i + 1];
+            k++;
+        }
+    }
+
+    free(secants);
+    free(tangents);
+    *out_x = rx;
+    *out_y = ry;
+    return n_out;
+}
+
 /* ================= 1 & 2. Bar / Horizontal Bar ================= */
 
 EKBarLayout ekplots_bar_layout(const double* values, size_t n, EKBarOptions opts) {
@@ -135,10 +227,13 @@ void ekplots_stacked_bar_free(EKStackedBarLayout* layout) {
 EKLineLayout ekplots_line_layout(const double* x, const double* y, size_t n, EKLineOptions opts) {
     EKLineLayout out = {0};
     if (n == 0) return out;
-    /* NOTE: opts.smooth is not yet implemented in v0.1 — monotone cubic
-     * interpolation is real future work, not faked here. Points are
-     * always straight-segment regardless of the flag. */
 
+    /* smooth=1 resamples through a real monotone cubic Hermite spline
+     * (ek_monotone_cubic_resample) BEFORE bounds/scaling — bounds must
+     * reflect the original data's min/max either way, since the curve
+     * never overshoots past its control points (that's the whole point
+     * of the monotone constraint), so x/y_min/max computed from the
+     * ORIGINAL n points are already correct for the resampled curve too. */
     double x_min = x[0], x_max = x[0], y_min = y[0], y_max = y[0];
     for (size_t i = 1; i < n; i++) {
         if (x[i] < x_min) x_min = x[i];
@@ -149,14 +244,27 @@ EKLineLayout ekplots_line_layout(const double* x, const double* y, size_t n, EKL
     double x_range = (x_max - x_min) > 0 ? (x_max - x_min) : 1.0;
     double y_range = (y_max - y_min) > 0 ? (y_max - y_min) : 1.0;
 
-    EKPoint* points = malloc(n * sizeof(EKPoint));
-    for (size_t i = 0; i < n; i++) {
-        points[i].x = (x[i] - x_min) / x_range * opts.width;
-        points[i].y = (y[i] - y_min) / y_range * opts.height;
+    const double* px = x;
+    const double* py = y;
+    size_t pn = n;
+    double* smoothed_x = NULL;
+    double* smoothed_y = NULL;
+    if (opts.smooth) {
+        pn = ek_monotone_cubic_resample(x, y, n, &smoothed_x, &smoothed_y);
+        px = smoothed_x;
+        py = smoothed_y;
     }
 
+    EKPoint* points = malloc(pn * sizeof(EKPoint));
+    for (size_t i = 0; i < pn; i++) {
+        points[i].x = (px[i] - x_min) / x_range * opts.width;
+        points[i].y = (py[i] - y_min) / y_range * opts.height;
+    }
+    free(smoothed_x);
+    free(smoothed_y);
+
     out.points = points;
-    out.n = n;
+    out.n = pn;
     out.bounds = (EKBounds){ x_min, x_max, y_min, y_max };
     return out;
 }

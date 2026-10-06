@@ -68,7 +68,7 @@ void ekplots_stacked_bar_free(EKStackedBarLayout* layout);
 
 typedef struct {
     double width, height;
-    int smooth;   /* 0 = straight segments, 1 = monotone cubic (unused in v0.1 — see .c) */
+    int smooth;   /* 0 = straight segments, 1 = monotone cubic (Fritsch-Carlson) */
 } EKLineOptions;
 
 typedef struct {
