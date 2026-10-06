@@ -351,14 +351,20 @@
     if (canvasEl.__ekplotsTracked) return; // one observer per canvas element
     canvasEl.__ekplotsTracked = true;
 
-    const emit = window.__analytics._emitChartEvent; // see docs/SPEC.md — host tracker extension point
+    // No leading underscore — the tracker keeps this name stable across
+    // its own build's property-mangling specifically so an external
+    // caller (this file) can rely on it. chartId/interactionType are
+    // camelCase; the tracker itself translates to the snake_case meta
+    // payload it stores, and fills in page_path/occurred_at — this call
+    // only ever passes what ekplots itself actually knows.
+    const emit = window.__analytics.emitChartEvent;
     if (typeof emit !== 'function') return;
 
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
-            emit({ type: 'chart_view', chart_id: chartId, occurred_at: new Date().toISOString() });
+            emit({ type: 'chart_view', chartId });
             observer.disconnect();
           }
         });
@@ -370,9 +376,8 @@
     canvasEl.addEventListener('click', (e) => {
       const rect = canvasEl.getBoundingClientRect();
       emit({
-        type: 'chart_interact', chart_id: chartId, interaction_type: 'click',
+        type: 'chart_interact', chartId, interactionType: 'click',
         x: e.clientX - rect.left, y: e.clientY - rect.top,
-        occurred_at: new Date().toISOString(),
       });
     });
   }

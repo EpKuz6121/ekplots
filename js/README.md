@@ -77,13 +77,25 @@ and, only if present and consent is already granted, wires up view/click
 tracking through an `IntersectionObserver`. See `ekplots-draw.js`'s
 `_wireTracking()` for the exact design.
 
-**This is spec-complete but only half-wired**: `_wireTracking()` calls
-`window.__analytics._emitChartEvent(...)`, a tracker-side extension
-point that doesn't exist yet in `tracker/src/` — SurveySync's tracker
-was never actually taught `chart_view`/`chart_interact` as real event
-types this session. Until that's added, `chartId` is accepted but has
-no observable effect even with a real tracker installed. Real work,
-not faked — flagged here rather than left to be discovered later.
+**Real and wired on both ends.** `_wireTracking()` calls
+`window.__analytics.emitChartEvent(...)` — SurveySync's tracker
+(`tracker/src/index.ts`) now implements it: `chart_view`/`chart_interact`
+are real `EventType`s, consent-gated identically to every other
+collector, with `chart_id`/`interaction_type`/`x`/`y` stored inside the
+event's `meta` JSONB field (not new top-level columns — no migration
+needed, matching how `scroll_behavior`/`engagement_rhythm` already
+store their derived data). Verified two ways: `tracker/test/
+smoke_chart_events.mjs` proves the tracker side lands the right data
+in `meta` and respects consent; `test_tracking_hook.mjs` in this repo
+proves ekplots' own `_wireTracking()` calls through with the exact
+camelCase shape (`chartId`, `interactionType`) the tracker expects,
+including the real click-coordinate math. One real bug was caught by
+this verification, not assumption: `emitChartEvent` originally had a
+leading underscore, which the tracker's own build (`esbuild`'s
+`mangleProps: /^_[a-zA-Z]/`) silently renames — meaning the documented
+call would have failed in production even though it looked correct in
+source. Fixed by dropping the underscore, matching every other real
+public method (`trackPageView`, `identify`).
 
 ## Files
 
@@ -94,4 +106,5 @@ not faked — flagged here rather than left to be discovered later.
 | `ekplots.js` | Geometry-only binding — loads the WASM module, marshals memory, returns plain JS objects |
 | `ekplots-draw.js` | Canvas2D renderer + the tracking hook |
 | `test_node.mjs` | 19 real correctness checks against the compiled WASM |
+| `test_tracking_hook.mjs` | 4 real checks that the tracking hook calls through to a mock tracker with the exact right shape |
 | `render_all_15.mjs` | Renders all 15 to real PNGs (uses `node-canvas` as a stand-in for a browser `<canvas>`) |

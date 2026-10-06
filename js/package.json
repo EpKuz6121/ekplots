@@ -5,7 +5,7 @@
   "main": "ekplots-draw.js",
   "license": "MIT",
   "scripts": {
-    "test": "node test_node.mjs",
+    "test": "node test_node.mjs && node test_tracking_hook.mjs",
     "render": "node render_all_15.mjs",
     "build": "./build.sh"
   },
