@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.pyc
+*.so
+*.dylib
+*.pyd
+.venv/
+*.egg-info/
+build/
+dist/
+
+# ekplots-specific build/test output
+python/out/
+smoke_*.output
+
+# Emscripten / WASM build products (large, regenerable — see js/build.sh)
+js/dist/
+*.wasm
+*.wasm.map
+emsdk/
+
+# OS cruft
+.DS_Store

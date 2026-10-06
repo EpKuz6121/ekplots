@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ekplots"
+version = "0.1.0"
+description = "A charting library with one C geometry core, shared between its Python and JS bindings."
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.9"
+authors = [{ name = "Ethan Kuzmik" }]
+dependencies = [
+    "matplotlib>=3.5",
+    "numpy>=1.20",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: C",
+    "Topic :: Scientific/Engineering :: Visualization",
+]
+
+[tool.setuptools]
+packages = ["ekplots"]

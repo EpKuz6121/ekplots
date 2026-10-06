@@ -1,0 +1,4 @@
+include ekplots/native/*.h
+include ekplots/native/*.c
+include README.md
+include LICENSE
